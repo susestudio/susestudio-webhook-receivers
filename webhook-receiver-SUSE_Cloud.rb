@@ -12,7 +12,6 @@
 
 require 'rubygems'
 require 'sinatra'
-require 'json'
 
 configure do
   enable :logging
