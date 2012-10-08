@@ -64,12 +64,12 @@ for details on how to do that.
 
 ### Running
 
-You must run the `openrc.sh` script (described in the previous section) and
+You must source the `openrc.sh` script (described in the previous section) and
 enter the password before running the webhook receiver script, otherwise the
 import to SUSE Cloud / OpenStack will fail. For example:
 
     > . openrc.sh
-    Please enter your OpenStack Password: 
+    Please enter your OpenStack Password:
 
 Then run the receiver script from the same terminal:
 
