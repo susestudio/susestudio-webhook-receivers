@@ -12,6 +12,7 @@
 
 require 'rubygems'
 require 'sinatra'
+require 'json'
 
 configure do
   enable :logging
@@ -54,17 +55,17 @@ end
 post '/' do
   logger.info "Processing request #{params.inspect}"
 
-  payload = params[:payload]
-  event   = payload[:event]
+  payload = JSON.parse(params["payload"])
+  event   = payload["event"]
   die "Missing '[payload][event]'" if event.nil?
 
   if event == 'build_finished'
-    image_type = payload[:build][:image_type]
+    image_type = payload["build"]["image_type"]
     die "Missing '[payload][build][image_type]" if image_type.nil?
 
     if image_type == 'kvm'
-      name = payload[:name]
-      url  = payload[:build][:download_url]
+      name = payload["name"]
+      url  = payload["build"]["download_url"]
       die "Missing '[payload][name]'" if name.nil?
       die "Missing '[payload][build][download_url]'" if url.nil?
 
