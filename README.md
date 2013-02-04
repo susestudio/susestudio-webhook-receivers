@@ -52,10 +52,12 @@ SLE11 SP2:
 
     sudo su -
     zypper addrepo \
-           http://download.opensuse.org/repositories/Virtualization:/Cloud/SLE_11_SP2/ \
+           http://download.opensuse.org/repositories/Cloud:/OpenStack:/Essex/SLE_11_SP2/ \
            Virt:Cloud
-    zypper refresh Virt:Cloud
-    zypper install python-glanceclient
+    zypper addrepo \
+           http://download.opensuse.org/repositories/devel:/languages:/python/SLE_11_SP2/ \
+           Devel:Languages:Python
+    zypper install python-glanceclient python-argparse
 
 At this point, you should test that the manual import works. You can refer to
 our [blog post](http://blog.susestudio.com/2012/10/importing-images-into-suse-cloud.html)
