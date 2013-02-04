@@ -35,8 +35,8 @@ Everything else is ignored.
 
 Firstly, install the required Ruby dependencies:
 
-    sudo zypper in ruby
-    sudo gem install rubygems sinatra
+    sudo zypper in ruby rubygem-bundler
+    bundle install
 
 You should then be able to run the script, at least to display the usage help:
 
