@@ -21,16 +21,17 @@ end
 set :bind, '0.0.0.0'
 set :port, 4567
 
-#before do
-#  env['rack.logger'] = Logger.new('webhooks.log')
-#end
+before do
+  env['rack.logger'] = Logger.new('webhooks.log')
+end
 
 helpers do
   def import_image(name, url, version, format)
-    if format == "kvm"
+    case format
+    when "kvm"
       disk_format = "qcow2"
       source = "--copy-from \"#{url}\""
-    elsif format == "xen"
+    when "xen"
       disk_format= "raw"
       filename = url.split('/').last
       command = <<-EOS.gsub(/^\s+/, ' ').gsub(/\n/, '')
@@ -39,37 +40,60 @@ helpers do
       logger.info "Running command: #{command}"
       output = `#{command}`
       logger.info "Output:\n#{output}"
-#      if 0.success?
-#        logger.info "Xen raw image extraction succeeded"
-#      else
-#        logger.error "Xen raw image extraction failed"
-#      end
+      if ?.success?
+        logger.info "Xen raw image extraction succeeded"
+      else
+        logger.error "Xen raw image extraction failed"
+      end
       source = "< /tmp/#{filename.split('.').first}-#{version}/#{filename.split('.').first}.#{filename.split('.')[1].split('-').first}-#{version}.raw"
-    else
-      logger.error "Invalid format for import_image function"
-    end
-    task = Thread.new do
+    when "vmx"
+      disk_format = "vmdk"
+      filename = url.split('/').last
       command = <<-EOS.gsub(/^\s+/, ' ').gsub(/\n/, '')
-        glance image-create
-               --name="#{name}-#{version}-#{format}" --is-public=True --disk-format=#{disk_format}
-               --container-format=bare --property hypervisor_type=#{format} #{source}  2>&1
+        curl -L #{url} | tar -xz -C /tmp/ 2>&1
       EOS
       logger.info "Running command: #{command}"
       output = `#{command}`
       logger.info "Output:\n#{output}"
-      if 0.success?
-        logger.info "Import succeeded"
-      else
-        logger.error "Import failed"
-      end
-      if format == "xen"
+      source = "< /tmp/#{filename.split('.').first}-#{version}/#{filename.split('.').first}.#{filename.split('.')[1].split('-').first}-#{version}.vmdk"
+    else
+      logger.error "Invalid format for import_image function"
+    end
+    task = Thread.new do
+      case format 
+      when "kvm", "xen"
         command = <<-EOS.gsub(/^\s+/, ' ').gsub(/\n/, '')
-          rm -Rf /tmp/#{name}-#{version}
+          glance image-create
+                 --name="#{name}-#{version}-#{format}" --is-public=True --disk-format=#{disk_format}
+                 --container-format=bare --property hypervisor_type=#{format} #{source}  2>&1
         EOS
         logger.info "Running command: #{command}"
         output = `#{command}`
         logger.info "Output:\n#{output}"
-        if 0.success?
+        if ?.success?
+          logger.info "Import succeeded"
+        else
+          logger.error "Import failed"
+        end
+      when "vmx"
+        command = <<-EOS.gsub(/^\s+/, ' ').gsub(/\n/, '')
+          glance image-create
+               --name="#{name}-#{version}-#{format}" --is-public=True --disk-format=#{disk_format} 
+               --container-format=bare --property hypervisor_type="vmware" 
+               --property vmware_adaptertype="lsiLogic" --property vmware_disktype="preallocated" #{source}  2>&1
+        EOS
+        logger.info "Running command: #{command}"
+        output = `#{command}`
+        logger.info "Output:\n#{output}"
+          if ?.success?
+            logger.info "Import succeeded"
+          else
+            logger.error "Import failed"
+          end
+      
+      if format == "xen"
+        FileUtils.remove_dir("/tmp/#{name}-#{version}",force=true)
+        if ?.success?
           logger.info "Xen temporary file delete succeeded"
         else
           logger.error "Xen temporary file delete failed"
@@ -99,8 +123,9 @@ post '/' do
   if event == 'build_finished'
     image_type = payload["build"]["image_type"]
     die "Missing '[payload][build][image_type]" if image_type.nil?
-
-    if image_type == 'kvm' || image_type == 'xen'
+    
+    case image_type
+    when 'kvm', 'xen', 'vmx'
       name = payload["name"]
       url  = payload["build"]["download_url"]
       version  = payload["build"]["version"]
